@@ -723,6 +723,7 @@ void physics(void)
 }
 
 extern void show_dmacias_credits(int,int);
+extern void show_andreas_credits(int,int);
 
 void render(void)
 {
@@ -925,6 +926,7 @@ void render(void)
 	ggprint8b(&r, 16, c, "Press c to show credits");
 	if(gl.show_credits) {
 		show_dmacias_credits(gl.yres /2, gl.xres / 2);
+		show_andreas_credits(gl.yres /2, gl.xres / 2);
 	}
 
 	ggprint8b(&r, 16, c, "W   Walk cycle");
