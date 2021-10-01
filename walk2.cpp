@@ -562,7 +562,7 @@ int checkKeys(XEvent *e)
 			screenCapture();
 			break;
         case XK_c:
-            gl.show_credits = 1;
+            gl.show_credits ^= 1;
             break;
 		case XK_m:
 			gl.movie ^= 1;
@@ -720,7 +720,9 @@ void physics(void)
 	gl.ball_pos[1] += gl.ball_vel[1];
 }
 //ADD EXTERNAL PROTOTYPE
-extern void show_gnunez_credits (int, int);
+extern void show_gnunez_credits(int, int);
+extern void show_dmacias_credits(int, int);
+extern void show_andreas_credits(int, int);
 
 void render(void)
 {
@@ -939,6 +941,8 @@ void render(void)
     //DISPLAY CREDITS
     if (gl.show_credits) {
         show_gnunez_credits(gl.yres / 2, gl.xres / 2);
+		show_dmacias_credits(gl.yres / 2, (gl.xres / 2-10));
+		show_andreas_credits((gl.yres / 2), (gl.xres / 2)-20);
     }
 }
 
