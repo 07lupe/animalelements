@@ -101,10 +101,11 @@ public:
 	unsigned char keys[65536];
 	int xres, yres;
 	int movie, movieStep;
-	int show_credits;
 	int walk;
 	int walkFrame;
 	double delay;
+    //
+    int show_credits;
 	Image *walkImage;
 	GLuint walkTexture;
 	Vec box[20];
@@ -118,7 +119,6 @@ public:
 		logClose();
 	}
 	Global() {
-		show_credits = 0;
 		logOpen();
 		camera[0] = camera[1] = 0.0;
 		movie=0;
@@ -131,6 +131,8 @@ public:
 		MakeVector(ball_pos, 520.0, 0, 0);
 		MakeVector(ball_vel, 0, 0, 0);
 		delay = 0.1;
+        //
+        show_credits = 0;
 		exp.onoff=0;
 		exp.frame=0;
 		exp.image=NULL;
@@ -556,16 +558,12 @@ int checkKeys(XEvent *e)
 	}
 	(void)shift;
 	switch (key) {
-		case XK_c:
-			if(gl.show_credits == 0) {
-				gl.show_credits = 1;
-			}else {
-				gl.show_credits = 0;
-			}
-			break;
 		case XK_s:
 			screenCapture();
 			break;
+        case XK_c:
+            gl.show_credits = 1;
+            break;
 		case XK_m:
 			gl.movie ^= 1;
 			break;
@@ -721,9 +719,8 @@ void physics(void)
 	}
 	gl.ball_pos[1] += gl.ball_vel[1];
 }
-
-extern void show_dmacias_credits(int,int);
-extern void show_andreas_credits(int,int);
+//ADD EXTERNAL PROTOTYPE
+extern void show_gnunez_credits (int, int);
 
 void render(void)
 {
@@ -923,22 +920,26 @@ void render(void)
 	r.bot = gl.yres - 20;
 	r.left = 10;
 	r.center = 0;
-	ggprint8b(&r, 16, c, "Press c to show credits");
-	if(gl.show_credits) {
-		show_dmacias_credits(gl.yres /2, gl.xres / 2);
-		show_andreas_credits(gl.yres /2, gl.xres / 2);
-	}
-
+    //DISPLAY CREDITS 
+    //if (gl.show_credits) {
+    //    show_gnunez_credits(gl.yres/2, gl.xres/2);
+    //}
 	ggprint8b(&r, 16, c, "W   Walk cycle");
 	ggprint8b(&r, 16, c, "E   Explosion");
 	ggprint8b(&r, 16, c, "+   faster");
 	ggprint8b(&r, 16, c, "-   slower");
 	ggprint8b(&r, 16, c, "right arrow -> walk right");
 	ggprint8b(&r, 16, c, "left arrow  <- walk left");
-	ggprint8b(&r, 16, c, "frame: %i", gl.walkFrame);
+	//C KEY
+    ggprint8b(&r, 16, c, "Press C to show credits");	
+    ggprint8b(&r, 16, c, "frame: %i", gl.walkFrame);
 	if (gl.movie) {
 		screenCapture();
 	}
+    //DISPLAY CREDITS
+    if (gl.show_credits) {
+        show_gnunez_credits(gl.yres / 2, gl.xres / 2);
+    }
 }
 
 
