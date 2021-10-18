@@ -340,9 +340,11 @@ Image img[3] = {
 "./images/exp.png",
 "./images/exp44.png" };
 
+extern void dmacias_initOpeng();
 
 int main(void)
 {
+	dmacias_initOpeng();
 	initOpengl();
 	init();
 	int done = 0;
@@ -627,6 +629,8 @@ Flt VecNormalize(Vec vec)
 	return(len);
 }
 
+extern void dmacias_physics();
+
 void physics(void)
 {
 	if (gl.walk || gl.keys[XK_Right] || gl.keys[XK_Left]) {
@@ -718,11 +722,16 @@ void physics(void)
 		gl.ball_vel[1] -= 0.9;
 	}
 	gl.ball_pos[1] += gl.ball_vel[1];
+
+	dmacias_physics();
 }
 //ADD EXTERNAL PROTOTYPE
 extern void show_gnunez_credits(int, int);
 extern void show_dmacias_credits(int, int);
 extern void show_andreas_credits(int, int);
+
+
+extern void show_dmacias_image(int,int);
 
 void render(void)
 {
@@ -732,7 +741,8 @@ void render(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 	float cx = gl.xres/2.0;
 	float cy = gl.yres/2.0;
-	//
+	
+/*
 	//show ground
 	glBegin(GL_QUADS);
 		glColor3f(0.2, 0.2, 0.2);
@@ -743,6 +753,7 @@ void render(void)
 		glVertex2i(0,         0);
 	glEnd();
 	//
+	
 	//show boxes as background
 	for (int i=0; i<20; i++) {
 		glPushMatrix();
@@ -756,6 +767,10 @@ void render(void)
 		glEnd();
 		glPopMatrix();
 	}
+*/
+
+	show_dmacias_image(gl.xres,gl.yres);
+
 	//
 	//========================
 	//Render the tile system
