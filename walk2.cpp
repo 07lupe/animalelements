@@ -106,6 +106,7 @@ public:
 	double delay;
     //
     int show_credits;
+	int score;
 	Image *walkImage;
 	GLuint walkTexture;
 	Vec box[20];
@@ -119,6 +120,8 @@ public:
 		logClose();
 	}
 	Global() {
+
+	    score =0;
 		logOpen();
 		camera[0] = camera[1] = 0.0;
 		movie=0;
@@ -354,6 +357,7 @@ int main(void)
 			x11.checkResize(&e);
 			checkMouse(&e);
 			done = checkKeys(&e);
+			gl.score++;
 		}
 		physics();
 		render();
@@ -732,6 +736,7 @@ extern void show_andreas_credits(int, int);
 
 
 extern void show_dmacias_image(int,int);
+extern void show_score(int,int,int);
 
 void render(void)
 {
@@ -741,7 +746,6 @@ void render(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 	float cx = gl.xres/2.0;
 	float cy = gl.yres/2.0;
-	
 /*
 	//show ground
 	glBegin(GL_QUADS);
@@ -937,19 +941,18 @@ void render(void)
 	r.bot = gl.yres - 20;
 	r.left = 10;
 	r.center = 0;
-    //DISPLAY CREDITS 
-    //if (gl.show_credits) {
-    //    show_gnunez_credits(gl.yres/2, gl.xres/2);
-    //}
+//	ggprint8b(&r, 16, c,"Score: %d",gl.score );
 	ggprint8b(&r, 16, c, "W   Walk cycle");
 	ggprint8b(&r, 16, c, "E   Explosion");
 	ggprint8b(&r, 16, c, "+   faster");
 	ggprint8b(&r, 16, c, "-   slower");
 	ggprint8b(&r, 16, c, "right arrow -> walk right");
 	ggprint8b(&r, 16, c, "left arrow  <- walk left");
-	//C KEY
     ggprint8b(&r, 16, c, "Press C to show credits");	
     ggprint8b(&r, 16, c, "frame: %i", gl.walkFrame);
+
+	show_score(gl.yres, 10, gl.score);
+
 	if (gl.movie) {
 		screenCapture();
 	}
