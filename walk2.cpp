@@ -733,6 +733,7 @@ void physics(void)
 extern void show_gnunez_credits(int, int);
 extern void show_dmacias_credits(int, int);
 extern void show_andreas_credits(int, int);
+extern void show_mervin_credits(int,int);
 
 
 extern void show_dmacias_image(int,int);
@@ -961,6 +962,7 @@ void render(void)
         show_gnunez_credits(gl.yres / 2, gl.xres / 2);
 		show_dmacias_credits(gl.yres / 2, (gl.xres / 2-10));
 		show_andreas_credits((gl.yres / 2), (gl.xres / 2)-20);
+		show_mervin_credits((gl.yres / 2), (gl.xres / 2)-30);
     }
 }
 

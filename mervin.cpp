@@ -2,17 +2,16 @@
 //Author:   Mario Ervin
 //Date:     9/30/2021
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <time.h>
-#include <math.h>
-#include <X11/Xlib.h>
-#include <X11/keysym.h>
-#include <GL/glx.h>
-#include "log.h"
+
 #include "fonts.h"
+#include <cstring>
+#include <cstdio>
+#include <cstddef>
+#include <stdlib.h>
+#include <unistd.h>
+#include <GL/glx.h>
+
+
 //
 //
 void show_mervin_credits(int x, int y)
