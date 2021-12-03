@@ -1,8 +1,9 @@
 //3350
 //program: walk2.cpp
-//author:  Gordon Griesel
-//date:    summer 2017
-//         spring 2018
+//Authors: Group 4
+//Framwork provided by:  Gordon Griesel
+//date:    Fall 2021
+//         
 //
 //Walk cycle using a sprite sheet.
 //images courtesy: http://games.ucla.edu/resource/walk-cycles/
@@ -12,6 +13,7 @@
 //  a level tiling system
 //  parallax scrolling of backgrounds
 //
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +31,15 @@
 typedef double Flt;
 typedef double Vec[3];
 typedef Flt	Matrix[4][4];
+typedef void (*WinResizeHandler)(int, int);
+
+typedef struct t_mouse {
+    int lbutton;
+    int rbutton;
+    int x;
+    int y;
+} Mouse;
+
 
 //macros
 #define rnd() (((double)rand())/(double)RAND_MAX)
@@ -43,6 +54,7 @@ typedef Flt	Matrix[4][4];
 const float timeslice = 1.0f;
 const float gravity = -0.2f;
 #define ALPHA 1
+#define MENU_ANDREA
 
 //function prototypes
 void initOpengl();
@@ -51,7 +63,8 @@ int checkKeys(XEvent *e);
 void init();
 void physics();
 void render();
-
+bool push_start = false;
+void quit();
 //-----------------------------------------------------------------------------
 //Setup timers
 class Timers {
@@ -105,10 +118,15 @@ public:
 	int walkFrame;
 	double delay;
     //
+    int mainMenu;
+    int credits;
+    int settings;
     int show_credits;
 	int score;
+    int nbuttons;
 	Image *walkImage;
 	GLuint walkTexture;
+    GLuint animalEleTexture;
 	Vec box[20];
 	Sprite exp;
 	Sprite exp44;
@@ -116,19 +134,22 @@ public:
 	Vec ball_vel;
 	//camera is centered at (0,0) lower-left of screen. 
 	Flt camera[2];
+    Mouse mouse;
 	~Global() {
 		logClose();
 	}
 	Global() {
 
+        logOpen();              
+        mainMenu = 1;           
 	    score =0;
-		logOpen();
 		camera[0] = camera[1] = 0.0;
 		movie=0;
 		movieStep=2;
 		xres=800;
 		yres=600;
 		walk=0;
+        credits = 0;             
 		walkFrame=0;
 		walkImage=NULL;
 		MakeVector(ball_pos, 520.0, 0, 0);
@@ -210,6 +231,7 @@ class X11_wrapper {
 private:
 	Display *dpy;
 	Window win;
+    WinResizeHandler handler;
 public:
 	~X11_wrapper() {
 		XDestroyWindow(dpy, win);
@@ -218,7 +240,7 @@ public:
 	void setTitle() {
 		//Set the window title bar.
 		XMapWindow(dpy, win);
-		XStoreName(dpy, win, "3350 - Walk Cycle");
+		XStoreName(dpy, win, "3350 - ANIMAL ELEMENTS");
 	}
 	void setupScreenRes(const int w, const int h) {
 		gl.xres = w;
@@ -243,13 +265,15 @@ public:
 		Colormap cmap = XCreateColormap(dpy, root, vi->visual, AllocNone);
 		swa.colormap = cmap;
 		swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask |
-			StructureNotifyMask | SubstructureNotifyMask;
+		     ButtonPress| ButtonReleaseMask | MotionNotify | PointerMotionMask | StructureNotifyMask 
+            | SubstructureNotifyMask;
 		win = XCreateWindow(dpy, root, 0, 0, gl.xres, gl.yres, 0,
 			vi->depth, InputOutput, vi->visual,
 			CWColormap | CWEventMask, &swa);
 		GLXContext glc = glXCreateContext(dpy, vi, NULL, GL_TRUE);
 		glXMakeCurrent(dpy, win, glc);
 		setTitle();
+       show_mouse_cursor(0);
 	}
 	void reshapeWindow(int width, int height) {
 		//window has been resized.
@@ -269,6 +293,9 @@ public:
 		if (xce.width != gl.xres || xce.height != gl.yres) {
 			//Window size did change.
 			reshapeWindow(xce.width, xce.height);
+            if (handler) {
+                handler(xce.width, xce.height);             // added resize handler
+            }
 		}
 	}
 	bool getXPending() {
@@ -281,6 +308,19 @@ public:
 	}
 	void swapBuffers() {
 		glXSwapBuffers(dpy, win);
+	}
+    void setWindowsResizeHandler(WinResizeHandler handler) {
+        this->handler = handler;
+    }
+    void set_mouse_position(int x, int y) {
+		XWarpPointer(dpy, None, win, 0, 0, 0, 0, x, y);
+	}
+	void show_mouse_cursor(const int onoff) {
+		if (onoff) {
+			//this removes our own blank cursor.
+			XUndefineCursor(dpy, win);
+			return;
+		}
 	}
 } x11;
 
@@ -338,18 +378,22 @@ public:
 			unlink(ppmname);
 	}
 };
-Image img[3] = {
+Image img[4] = {
 "./images/walk.gif",
 "./images/exp.png",
-"./images/exp44.png" };
+"./images/exp44.png", 
+"./images/Drawing.jpeg" 
+};
 
 extern void dmacias_initOpeng();
 
 int main(void)
 {
+    logOpen();
 	dmacias_initOpeng();
 	initOpengl();
 	init();
+    x11.set_mouse_position(100,100);
 	int done = 0;
 	while (!done) {
 		while (x11.getXPending()) {
@@ -364,8 +408,21 @@ int main(void)
 		x11.swapBuffers();
 	}
 	cleanup_fonts();
+    logClose();
 	return 0;
 }
+
+void onWindowResize(int width, int height) {
+    Log("Window resized to %dx%d\n", width, height);
+    gl.xres = width;
+    gl.yres = height;
+    extern void calculateButtons();
+    calculateButtons();
+    extern void calculateBackButton();
+    calculateBackButton();
+
+}
+
 
 unsigned char *buildAlphaData(Image *img)
 {
@@ -413,20 +470,36 @@ void initOpengl(void)
 	glDisable(GL_CULL_FACE);
 	//
 	//Clear the screen
-	glClearColor(1.0, 1.0, 1.0, 1.0);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
 	//glClear(GL_COLOR_BUFFER_BIT);
 	//Do this to allow fonts
 	glEnable(GL_TEXTURE_2D);
 	initialize_fonts();
 	//
+	//
+	//create opengl texture elements
+	glGenTextures(1, &gl.walkTexture);
+    //------------------------------------------------------------------------
+    // Animal Elements MainMenu Background
+	//-------------------------------------------------------------------------
+    //
+    glGenTextures(1, &gl.animalEleTexture);
+    //
+    int w_background = img[4].width;
+    int h_background = img[4].width;
+    //
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gl.animalEleTexture);
+    //
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w_background, h_background, 0,
+			GL_RGB, GL_UNSIGNED_BYTE, img[4].data);
+    //------------------------------------------------------------------------
 	//load the images file into a ppm structure.
 	//
 	int w = img[0].width;
 	int h = img[0].height;
-	//
-	//create opengl texture elements
-	glGenTextures(1, &gl.walkTexture);
-	//-------------------------------------------------------------------------
 	//silhouette
 	//this is similar to a sprite graphic
 	//
@@ -473,9 +546,10 @@ void initOpengl(void)
 }
 
 void init() {
+    x11.setWindowsResizeHandler(onWindowResize);
+
 
 }
-
 void checkMouse(XEvent *e)
 {
 	//printf("checkMouse()...\n"); fflush(stdout);
@@ -483,26 +557,48 @@ void checkMouse(XEvent *e)
 	//Was a mouse button clicked?
 	static int savex = 0;
 	static int savey = 0;
-	//
 	if (e->type != ButtonRelease && e->type != ButtonPress &&
 			e->type != MotionNotify)
 		return;
 	if (e->type == ButtonRelease) {
+
+           if (e->xbutton.button==1) {
+            //Left button is down
+            gl.mouse.lbutton = 0;
+            
+        }
+        if (e->xbutton.button==3) {
+            //Right button is down
+            gl.mouse.rbutton = 0;
+
+        }
 		return;
 	}
 	if (e->type == ButtonPress) {
-		if (e->xbutton.button==1) {
-			//Left button is down
-		}
-		if (e->xbutton.button==3) {
-			//Right button is down
-		}
-	}
+
+        if (e->xbutton.button==1) {
+            //Left button is down
+            gl.mouse.lbutton = 1;
+            push_start = true;
+
+        }
+        if (e->xbutton.button==3) {
+            //Right button is down
+            gl.mouse.rbutton = 1;
+            push_start = true;
+
+        }
+    }
+
 	if (e->type == MotionNotify) {
 		if (savex != e->xbutton.x || savey != e->xbutton.y) {
 			//Mouse moved
 			savex = e->xbutton.x;
 			savey = e->xbutton.y;
+            gl.mouse.x = e->xbutton.x;
+            gl.mouse.y = e->xbutton.y;
+            Log("checkMouse(): gl.mouse.y -- %d\n", gl.mouse.y);
+
 		}
 	}
 }
@@ -536,7 +632,6 @@ void screenCapture()
 		}
 		fclose(fpo);
 		char s[256];
-		sprintf(s, "convert ./vid/pic%03i.ppm ./vid/pic%03i.gif", fnum, fnum);
 		system(s);
 		unlink(ts);
 	}
@@ -566,10 +661,16 @@ int checkKeys(XEvent *e)
 	switch (key) {
 		case XK_s:
 			screenCapture();
+//            push_start = true;          // added
 			break;
         case XK_c:
             gl.show_credits ^= 1;
             break;
+     /*   case XK_h: ------------------------------------------FIX THIS----------------<<<<<<
+            if (gl.mainMenu) { 
+                extern void showMenu();
+                showMenu();}
+            break;*/
 		case XK_m:
 			gl.movie ^= 1;
 			break;
@@ -730,10 +831,13 @@ void physics(void)
 	dmacias_physics();
 }
 //ADD EXTERNAL PROTOTYPE
+
 extern void show_gnunez_credits(int, int);
 extern void show_dmacias_credits(int, int);
 extern void show_andreas_credits(int, int);
 extern void show_mervin_credits(int,int);
+
+
 
 
 extern void show_dmacias_image(int,int);
@@ -741,229 +845,257 @@ extern void show_score(int,int,int);
 
 void render(void)
 {
-	Rect r;
-	//Clear the screen
-	glClearColor(0.1, 0.1, 0.1, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	float cx = gl.xres/2.0;
-	float cy = gl.yres/2.0;
-/*
-	//show ground
-	glBegin(GL_QUADS);
-		glColor3f(0.2, 0.2, 0.2);
-		glVertex2i(0,       220);
-		glVertex2i(gl.xres, 220);
-		glColor3f(0.4, 0.4, 0.4);
-		glVertex2i(gl.xres,   0);
-		glVertex2i(0,         0);
-	glEnd();
-	//
-	
-	//show boxes as background
-	for (int i=0; i<20; i++) {
-		glPushMatrix();
-		glTranslated(gl.box[i][0],gl.box[i][1],gl.box[i][2]);
-		glColor3f(0.2, 0.2, 0.2);
-		glBegin(GL_QUADS);
-			glVertex2i( 0,  0);
-			glVertex2i( 0, 30);
-			glVertex2i(20, 30);
-			glVertex2i(20,  0);
-		glEnd();
-		glPopMatrix();
-	}
-*/
+    
+    if (gl.mainMenu) {
+        extern void showMenu();
+        showMenu();
 
-	show_dmacias_image(gl.xres,gl.yres);
-
-	//
-	//========================
-	//Render the tile system
-	//========================
-	int tx = lev.tilesize[0];
-	int ty = lev.tilesize[1];
-	Flt dd = lev.ftsz[0];
-	Flt offy = lev.tile_base;
-	int ncols_to_render = gl.xres / lev.tilesize[0] + 2;
-	int col = (int)(gl.camera[0] / dd);
-	col = col % lev.ncols;
-	//Partial tile offset must be determined here.
-	//The leftmost tile might be partially off-screen.
-	//cdd: camera position in terms of tiles.
-	Flt cdd = gl.camera[0] / dd;
-	//flo: just the integer portion
-	Flt flo = floor(cdd);
-	//dec: just the decimal portion
-	Flt dec = (cdd - flo);
-	//offx: the offset to the left of the screen to start drawing tiles
-	Flt offx = -dec * dd;
-	//Log("gl.camera[0]: %lf   offx: %lf\n",gl.camera[0],offx);
-	for (int j=0; j<ncols_to_render; j++) {
-		int row = lev.nrows-1;
-		for (int i=0; i<lev.nrows; i++) {
-			if (lev.arr[row][col] == 'w') {
-				glColor3f(0.8, 0.8, 0.6);
-				glPushMatrix();
-				//put tile in its place
-				glTranslated((Flt)j*dd+offx, (Flt)i*lev.ftsz[1]+offy, 0);
-				glBegin(GL_QUADS);
-					glVertex2i( 0,  0);
-					glVertex2i( 0, ty);
-					glVertex2i(tx, ty);
-					glVertex2i(tx,  0);
-				glEnd();
-				glPopMatrix();
-			}
-			if (lev.arr[row][col] == 'b') {
-				glColor3f(0.9, 0.2, 0.2);
-				glPushMatrix();
-				glTranslated((Flt)j*dd+offx, (Flt)i*lev.ftsz[1]+offy, 0);
-				glBegin(GL_QUADS);
-					glVertex2i( 0,  0);
-					glVertex2i( 0, ty);
-					glVertex2i(tx, ty);
-					glVertex2i(tx,  0);
-				glEnd();
-				glPopMatrix();
-			}
-			--row;
-		}
-		col = (col+1) % lev.ncols;
-	}
-	glColor3f(1.0, 1.0, 0.1);
-	glPushMatrix();
-	//put ball in its place
-	glTranslated(gl.ball_pos[0], lev.tile_base+gl.ball_pos[1], 0);
-	glBegin(GL_QUADS);
-		glVertex2i(-10, 0);
-		glVertex2i(-10, 20);
-		glVertex2i( 10, 20);
-		glVertex2i( 10, 0);
-	glEnd();
-	glPopMatrix();
-	//--------------------------------------
-	//
-	//#define SHOW_FAKE_SHADOW
-	#ifdef SHOW_FAKE_SHADOW
-	glColor3f(0.25, 0.25, 0.25);
-	glBegin(GL_QUADS);
-		glVertex2i(cx-60, 150);
-		glVertex2i(cx+50, 150);
-		glVertex2i(cx+50, 130);
-		glVertex2i(cx-60, 130);
-	glEnd();
-	#endif
-	//
-	//
-	float h = 200.0;
-	float w = h * 0.5;
-	glPushMatrix();
-	glColor3f(1.0, 1.0, 1.0);
-	glBindTexture(GL_TEXTURE_2D, gl.walkTexture);
-	//
-	glEnable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_GREATER, 0.0f);
-	glColor4ub(255,255,255,255);
-	int ix = gl.walkFrame % 8;
-	int iy = 0;
-	if (gl.walkFrame >= 8)
-		iy = 1;
-	float fx = (float)ix / 8.0;
-	float fy = (float)iy / 2.0;
-	glBegin(GL_QUADS);
-		if (gl.keys[XK_Left]) {
-			glTexCoord2f(fx+.125, fy+.5); glVertex2i(cx-w, cy-h);
-			glTexCoord2f(fx+.125, fy);    glVertex2i(cx-w, cy+h);
-			glTexCoord2f(fx,      fy);    glVertex2i(cx+w, cy+h);
-			glTexCoord2f(fx,      fy+.5); glVertex2i(cx+w, cy-h);
-		} else {
-			glTexCoord2f(fx,      fy+.5); glVertex2i(cx-w, cy-h);
-			glTexCoord2f(fx,      fy);    glVertex2i(cx-w, cy+h);
-			glTexCoord2f(fx+.125, fy);    glVertex2i(cx+w, cy+h);
-			glTexCoord2f(fx+.125, fy+.5); glVertex2i(cx+w, cy-h);
-		}
-	glEnd();
-	glPopMatrix();
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_ALPHA_TEST);
-	//
-	//
-	if (gl.exp.onoff) {
-		h = 80.0;
-		w = 80.0;
-		glPushMatrix();
-		glColor3f(1.0, 1.0, 1.0);
-		glBindTexture(GL_TEXTURE_2D, gl.exp.tex);
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.0f);
-		glColor4ub(255,255,255,255);
-		glTranslated(gl.exp.pos[0], gl.exp.pos[1], gl.exp.pos[2]);
-		int ix = gl.exp.frame % 5;
-		int iy = gl.exp.frame / 5;
-		float tx = (float)ix / 5.0;
-		float ty = (float)iy / 5.0;
-		glBegin(GL_QUADS);
-			glTexCoord2f(tx,     ty+0.2); glVertex2i(cx-w, cy-h);
-			glTexCoord2f(tx,     ty);     glVertex2i(cx-w, cy+h);
-			glTexCoord2f(tx+0.2, ty);     glVertex2i(cx+w, cy+h);
-			glTexCoord2f(tx+0.2, ty+0.2); glVertex2i(cx+w, cy-h);
-		glEnd();
-		glPopMatrix();
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glDisable(GL_ALPHA_TEST);
-	}
-	//
-	//
-	if (gl.exp44.onoff) {
-		h = 80.0;
-		w = 80.0;
-		glPushMatrix();
-		glColor3f(1.0, 1.0, 1.0);
-		glBindTexture(GL_TEXTURE_2D, gl.exp44.tex);
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.0f);
-		glColor4ub(255,255,255,255);
-		glTranslated(gl.exp44.pos[0], gl.exp44.pos[1], gl.exp44.pos[2]);
-		int ix = gl.exp44.frame % 4;
-		int iy = gl.exp44.frame / 4;
-		float tx = (float)ix / 4.0;
-		float ty = (float)iy / 4.0;
-		glBegin(GL_QUADS);
-			glTexCoord2f(tx,      ty+0.25); glVertex2i(cx-w, cy-h);
-			glTexCoord2f(tx,      ty);      glVertex2i(cx-w, cy+h);
-			glTexCoord2f(tx+0.25, ty);      glVertex2i(cx+w, cy+h);
-			glTexCoord2f(tx+0.25, ty+0.25); glVertex2i(cx+w, cy-h);
-		glEnd();
-		glPopMatrix();
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glDisable(GL_ALPHA_TEST);
-	}
-	unsigned int c = 0x00ffff44;
-	r.bot = gl.yres - 20;
-	r.left = 10;
-	r.center = 0;
-//	ggprint8b(&r, 16, c,"Score: %d",gl.score );
-	ggprint8b(&r, 16, c, "W   Walk cycle");
-	ggprint8b(&r, 16, c, "E   Explosion");
-	ggprint8b(&r, 16, c, "+   faster");
-	ggprint8b(&r, 16, c, "-   slower");
-	ggprint8b(&r, 16, c, "right arrow -> walk right");
-	ggprint8b(&r, 16, c, "left arrow  <- walk left");
-    ggprint8b(&r, 16, c, "Press C to show credits");	
-    ggprint8b(&r, 16, c, "frame: %i", gl.walkFrame);
-
-	show_score(gl.yres, 10, gl.score);
-
-	if (gl.movie) {
-		screenCapture();
-	}
-    //DISPLAY CREDITS
-    if (gl.show_credits) {
-        show_gnunez_credits(gl.yres / 2, gl.xres / 2);
-		show_dmacias_credits(gl.yres / 2, (gl.xres / 2-10));
-		show_andreas_credits((gl.yres / 2), (gl.xres / 2)-20);
-		show_mervin_credits((gl.yres / 2), (gl.xres / 2)-30);
+        //extern void showTitle(int, int, GLuint texid);
+       // showTitle(1400/2, 1000/2, gl.animalEle);
     }
+    else if (gl.credits ) {
+
+        
+        
+        show_gnunez_credits(200, 500);
+        show_dmacias_credits(200, 400);
+        show_andreas_credits(200, 300);
+        show_mervin_credits(200,200);
+        
+        extern void showBackButton();
+        showBackButton();
+    }
+    else if(!gl.mainMenu || ! gl.show_credits){
+        //extern void menu(int x, int y);
+        //menu(100, gl.yres-155);
+    
+        /*
+            //show ground
+            glBegin(GL_QUADS);
+                glColor3f(0.2, 0.2, 0.2);
+                glVertex2i(0,       220);
+                glVertex2i(gl.xres, 220);
+                glColor3f(0.4, 0.4, 0.4);
+                glVertex2i(gl.xres,   0);
+                glVertex2i(0,         0);
+            glEnd();
+            //
+            
+            //show boxes as background
+            for (int i=0; i<20; i++) {
+                glPushMatrix();
+                glTranslated(gl.box[i][0],gl.box[i][1],gl.box[i][2]);
+                glColor3f(0.2, 0.2, 0.2);
+                glBegin(GL_QUADS);
+                    glVertex2i( 0,  0);
+                    glVertex2i( 0, 30);
+                    glVertex2i(20, 30);
+                    glVertex2i(20,  0);
+                glEnd();
+                glPopMatrix();
+            }
+        */
+
+        Rect r;
+        //Clear the screen
+        glClearColor(0.1, 0.1, 0.1, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        float cx = gl.xres/2.0;
+        float cy = gl.yres/2.0;
+
+        show_dmacias_image(gl.xres,gl.yres);
+
+        //
+        //========================
+        //Render the tile system
+        //========================
+        int tx = lev.tilesize[0];
+        int ty = lev.tilesize[1];
+        Flt dd = lev.ftsz[0];
+        Flt offy = lev.tile_base;
+        int ncols_to_render = gl.xres / lev.tilesize[0] + 2;
+        int col = (int)(gl.camera[0] / dd);
+        col = col % lev.ncols;
+        //Partial tile offset must be determined here.
+        //The leftmost tile might be partially off-screen.
+        //cdd: camera position in terms of tiles.
+        Flt cdd = gl.camera[0] / dd;
+        //flo: just the integer portion
+        Flt flo = floor(cdd);
+        //dec: just the decimal portion
+        Flt dec = (cdd - flo);
+        //offx: the offset to the left of the screen to start drawing tiles
+        Flt offx = -dec * dd;
+        //Log("gl.camera[0]: %lf   offx: %lf\n",gl.camera[0],offx);
+        for (int j=0; j<ncols_to_render; j++) {
+            int row = lev.nrows-1;
+            for (int i=0; i<lev.nrows; i++) {
+                if (lev.arr[row][col] == 'w') {
+                    glColor3f(0.8, 0.8, 0.6);
+                    glPushMatrix();
+                    //put tile in its place
+                    glTranslated((Flt)j*dd+offx, (Flt)i*lev.ftsz[1]+offy, 0);
+                    glBegin(GL_QUADS);
+                        glVertex2i( 0,  0);
+                        glVertex2i( 0, ty);
+                        glVertex2i(tx, ty);
+                        glVertex2i(tx,  0);
+                    glEnd();
+                    glPopMatrix();
+                    }
+                    if (lev.arr[row][col] == 'b') {
+                    glColor3f(0.9, 0.2, 0.2);
+                    glPushMatrix();
+                    glTranslated((Flt)j*dd+offx, (Flt)i*lev.ftsz[1]+offy, 0);
+                    glBegin(GL_QUADS);
+                        glVertex2i( 0,  0);
+                        glVertex2i( 0, ty);
+                        glVertex2i(tx, ty);
+                        glVertex2i(tx,  0);
+                    glEnd();
+                    glPopMatrix();
+                }
+                --row;
+            }
+            col = (col+1) % lev.ncols;
+        }
+        glColor3f(1.0, 1.0, 0.1);
+        glPushMatrix();
+        //put ball in its place
+        glTranslated(gl.ball_pos[0], lev.tile_base+gl.ball_pos[1], 0);
+        glBegin(GL_QUADS);
+            glVertex2i(-10, 0);
+            glVertex2i(-10, 20);
+            glVertex2i( 10, 20);
+            glVertex2i( 10, 0);
+        glEnd();
+        glPopMatrix();
+        //--------------------------------------
+        //
+        //#define SHOW_FAKE_SHADOW
+        #ifdef SHOW_FAKE_SHADOW
+        glColor3f(0.25, 0.25, 0.25);
+        glBegin(GL_QUADS);
+            glVertex2i(cx-60, 150);
+            glVertex2i(cx+50, 150);
+            glVertex2i(cx+50, 130);
+            glVertex2i(cx-60, 130);
+        glEnd();
+        #endif
+        //
+        //
+        float h = 200.0;
+        float w = h * 0.5;
+        glPushMatrix();
+        glColor3f(1.0, 1.0, 1.0);
+        glBindTexture(GL_TEXTURE_2D, gl.walkTexture);
+        //
+        glEnable(GL_ALPHA_TEST);
+        glAlphaFunc(GL_GREATER, 0.0f);
+        glColor4ub(255,255,255,255);
+        int ix = gl.walkFrame % 8;
+        int iy = 0;
+        if (gl.walkFrame >= 8)
+            iy = 1;
+        float fx = (float)ix / 8.0;
+        float fy = (float)iy / 2.0;
+        glBegin(GL_QUADS);
+            if (gl.keys[XK_Left]) {
+                glTexCoord2f(fx+.125, fy+.5); glVertex2i(cx-w, cy-h);
+                glTexCoord2f(fx+.125, fy);    glVertex2i(cx-w, cy+h);
+                glTexCoord2f(fx,      fy);    glVertex2i(cx+w, cy+h);
+                glTexCoord2f(fx,      fy+.5); glVertex2i(cx+w, cy-h);
+            } else {
+                glTexCoord2f(fx,      fy+.5); glVertex2i(cx-w, cy-h);
+                glTexCoord2f(fx,      fy);    glVertex2i(cx-w, cy+h);
+                glTexCoord2f(fx+.125, fy);    glVertex2i(cx+w, cy+h);
+                glTexCoord2f(fx+.125, fy+.5); glVertex2i(cx+w, cy-h);
+            }
+        glEnd();
+        glPopMatrix();
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glDisable(GL_ALPHA_TEST);
+        //
+        //
+        if (gl.exp.onoff) {
+            h = 80.0;
+            w = 80.0;
+            glPushMatrix();
+            glColor3f(1.0, 1.0, 1.0);
+            glBindTexture(GL_TEXTURE_2D, gl.exp.tex);
+            glEnable(GL_ALPHA_TEST);
+            glAlphaFunc(GL_GREATER, 0.0f);
+            glColor4ub(255,255,255,255);
+            glTranslated(gl.exp.pos[0], gl.exp.pos[1], gl.exp.pos[2]);
+            int ix = gl.exp.frame % 5;
+            int iy = gl.exp.frame / 5;
+            float tx = (float)ix / 5.0;
+            float ty = (float)iy / 5.0;
+            glBegin(GL_QUADS);
+                glTexCoord2f(tx,     ty+0.2); glVertex2i(cx-w, cy-h);
+                glTexCoord2f(tx,     ty);     glVertex2i(cx-w, cy+h);
+                glTexCoord2f(tx+0.2, ty);     glVertex2i(cx+w, cy+h);
+                glTexCoord2f(tx+0.2, ty+0.2); glVertex2i(cx+w, cy-h);
+            glEnd();
+            glPopMatrix();
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glDisable(GL_ALPHA_TEST);
+        }
+        //
+        //
+        if (gl.exp44.onoff) {
+            h = 80.0;
+            w = 80.0;
+            glPushMatrix();
+            glColor3f(1.0, 1.0, 1.0);
+            glBindTexture(GL_TEXTURE_2D, gl.exp44.tex);
+            glEnable(GL_ALPHA_TEST);
+            glAlphaFunc(GL_GREATER, 0.0f);
+            glColor4ub(255,255,255,255);
+            glTranslated(gl.exp44.pos[0], gl.exp44.pos[1], gl.exp44.pos[2]);
+            int ix = gl.exp44.frame % 4;
+            int iy = gl.exp44.frame / 4;
+            float tx = (float)ix / 4.0;
+            float ty = (float)iy / 4.0;
+            glBegin(GL_QUADS);
+                glTexCoord2f(tx,      ty+0.25); glVertex2i(cx-w, cy-h);
+                glTexCoord2f(tx,      ty);      glVertex2i(cx-w, cy+h);
+                glTexCoord2f(tx+0.25, ty);      glVertex2i(cx+w, cy+h);
+                glTexCoord2f(tx+0.25, ty+0.25); glVertex2i(cx+w, cy-h);
+            glEnd();
+            glPopMatrix();
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glDisable(GL_ALPHA_TEST);
+        }
+        unsigned int c = 0x00ffff44;
+        r.bot = gl.yres - 20;
+        r.left = 10;
+        r.center = 0;
+    //	ggprint8b(&r, 16, c,"Score: %d",gl.score );
+        ggprint8b(&r, 16, c, "W   Walk cycle");
+        ggprint8b(&r, 16, c, "E   Explosion");
+        ggprint8b(&r, 16, c, "+   faster");
+        ggprint8b(&r, 16, c, "-   slower");
+        ggprint8b(&r, 16, c, "right arrow -> walk right");
+        ggprint8b(&r, 16, c, "left arrow  <- walk left");
+        ggprint8b(&r, 16, c, "Press C to show credits");	
+        ggprint8b(&r, 16, c, "frame: %i", gl.walkFrame);
+
+        show_score(gl.yres, 10, gl.score);
+
+        if (gl.movie) {
+            screenCapture();
+        }
+        //DISPLAY CREDITS
+        if (gl.show_credits) {
+            show_gnunez_credits(gl.yres / 2, gl.xres / 2);
+            show_dmacias_credits(gl.yres / 2, (gl.xres / 2-10));
+            show_andreas_credits((gl.yres / 2), (gl.xres / 2)-20);
+            show_mervin_credits((gl.yres / 2), (gl.xres / 2)-30);
+        }
+
+    }
+
 }
 
 
