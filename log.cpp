@@ -1,4 +1,4 @@
-//log.cpp
+//Using log.cpp for animal elements
 //Author:  Gordon Griesel
 //Date:    Summer 2014
 //Purpose: Allow logging of messages to a file during program execution.

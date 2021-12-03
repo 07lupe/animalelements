@@ -12,7 +12,7 @@ void show_gnunez_credits(int x, int y)
     r.bot = y;
     r.left = x;
     r.center = 1;
-    ggprint8b(&r, 16, 0x00ffff44, "Lupe created credits");
+    ggprint16(&r, 16, 0x00ffff44, "Lupe created credits");
 
 }
 
